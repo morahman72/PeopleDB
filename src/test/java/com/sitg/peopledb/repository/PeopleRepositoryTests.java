@@ -5,11 +5,13 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 
@@ -22,12 +24,11 @@ public class PeopleRepositoryTests {
 
     @BeforeEach
     void setUp() throws SQLException {
-        connection = DriverManager.getConnection("jdbc:h2:C:\\Users\\Owner\\Desktop\\Java\\Terry\\dBeaver\\peopletest");
+        connection = DriverManager.getConnection("jdbc:h2:C:\\Users\\Owner\\Desktop\\Java\\Terry\\Chapt12\\dBeaver\\peopletest");
         connection.setAutoCommit(false);
         repo = new PeopleRepository(connection);
     }
-    //like a try-catch block
-    //try { open connection } catch(Exception ex) {handle exception} finally {cleanup or recover}
+
     @AfterEach
     void tearDown() throws SQLException {
         if (connection != null ) {
@@ -51,7 +52,7 @@ public class PeopleRepositoryTests {
     }
     @Test
     public void canFindPersonById() {
-        Person savedPerson = repo.save(new Person("test", "jackson", ZonedDateTime.now()));
+        Person savedPerson = repo.save(new Person("test", "jackson", ZonedDateTime.now().truncatedTo(ChronoUnit.MILLIS)));
         Person foundPerson = repo.findById(savedPerson.getId()).get();
         assertThat(foundPerson).isEqualTo(savedPerson);
     }
@@ -60,27 +61,50 @@ public class PeopleRepositoryTests {
         Optional<Person> foundPerson = repo.findById(-1L);
         assertThat(foundPerson).isEmpty();
     }
-//    @Test
-//    public void canFindAll() {
-//        repo.save(new Person("John", "Smith", ZonedDateTime.of(1980, 11, 15, 15, 15, 0, 0, ZoneId.of("-6"))));
-//        repo.save(new Person("John1", "Smith", ZonedDateTime.of(1980, 11, 15, 15, 15, 0, 0, ZoneId.of("-6"))));
-//        repo.save(new Person("John2", "Smith", ZonedDateTime.of(1980, 11, 15, 15, 15, 0, 0, ZoneId.of("-6"))));
-//        repo.save(new Person("John3", "Smith", ZonedDateTime.of(1980, 11, 15, 15, 15, 0, 0, ZoneId.of("-6"))));
-//        repo.save(new Person("John4", "Smith", ZonedDateTime.of(1980, 11, 15, 15, 15, 0, 0, ZoneId.of("-6"))));
-//        repo.save(new Person("John5", "Smith", ZonedDateTime.of(1980, 11, 15, 15, 15, 0, 0, ZoneId.of("-6"))));
-//        repo.save(new Person("John6", "Smith", ZonedDateTime.of(1980, 11, 15, 15, 15, 0, 0, ZoneId.of("-6"))));
-//        repo.save(new Person("John7", "Smith", ZonedDateTime.of(1980, 11, 15, 15, 15, 0, 0, ZoneId.of("-6"))));
-//        repo.save(new Person("John8", "Smith", ZonedDateTime.of(1980, 11, 15, 15, 15, 0, 0, ZoneId.of("-6"))));
-//
-//        List<Person> people = repo.findAll();
-//        assertThat(people.size()).isGreaterThanOrEqualTo(10);
-//    }
-//    @Test
-//    public void canGetCount() {
-//        long startCount = repo.count();
-//        repo.save(new Person("John", "Smith", ZonedDateTime.of(1980, 11, 15, 15, 15, 0, 0, ZoneId.of("-6"))));
-//        repo.save(new Person("John1", "Smith", ZonedDateTime.of(1980, 11, 15, 15, 15, 0, 0, ZoneId.of("-6"))));
-//        long endCount = repo.count();
-//        assertThat(endCount).isEqualTo(startCount + 2);
-//    }
+    @Test
+    public void canFindAll() {
+        repo.save(new Person("John", "Smith", ZonedDateTime.of(1980, 11, 15, 15, 15, 0, 0, ZoneId.of("-6"))));
+        repo.save(new Person("John1", "Smith", ZonedDateTime.of(1980, 11, 15, 15, 15, 0, 0, ZoneId.of("-6"))));
+        repo.save(new Person("John2", "Smith", ZonedDateTime.of(1980, 11, 15, 15, 15, 0, 0, ZoneId.of("-6"))));
+        repo.save(new Person("John3", "Smith", ZonedDateTime.of(1980, 11, 15, 15, 15, 0, 0, ZoneId.of("-6"))));
+        repo.save(new Person("John4", "Smith", ZonedDateTime.of(1980, 11, 15, 15, 15, 0, 0, ZoneId.of("-6"))));
+        repo.save(new Person("John5", "Smith", ZonedDateTime.of(1980, 11, 15, 15, 15, 0, 0, ZoneId.of("-6"))));
+        repo.save(new Person("John6", "Smith", ZonedDateTime.of(1980, 11, 15, 15, 15, 0, 0, ZoneId.of("-6"))));
+        repo.save(new Person("John7", "Smith", ZonedDateTime.of(1980, 11, 15, 15, 15, 0, 0, ZoneId.of("-6"))));
+        repo.save(new Person("John8", "Smith", ZonedDateTime.of(1980, 11, 15, 15, 15, 0, 0, ZoneId.of("-6"))));
+
+        List<Person> people = repo.findAll();
+        assertThat(people.size()).isGreaterThanOrEqualTo(10);
+    }
+    @Test
+    public void canGetCount() {
+        long startCount = repo.count();
+        repo.save(new Person("John", "Smith", ZonedDateTime.of(1980, 11, 15, 15, 15, 0, 0, ZoneId.of("-6"))));
+        repo.save(new Person("John1", "Smith", ZonedDateTime.of(1980, 11, 15, 15, 15, 0, 0, ZoneId.of("-6"))));
+        long endCount = repo.count();
+        assertThat(endCount).isEqualTo(startCount + 2);
+    }
+    @Test
+    public void canDelete() {
+        Person savedPerson = repo.save(new Person("John", "Smith", ZonedDateTime.of(1980, 11, 15, 15, 15, 0, 0, ZoneId.of("-6"))));
+        long startCount = repo.count();
+        repo.delete(savedPerson);
+        long endCount = repo.count();
+        assertThat(endCount).isEqualTo(startCount - 1);
+    }
+
+    @Test
+    public void canUpdate() {
+        Person savedPerson = repo.save(new Person("John1", "Smith", ZonedDateTime.of(1980, 11, 15, 15, 15, 0, 0, ZoneId.of("-6")).truncatedTo(ChronoUnit.MILLIS)));
+
+        Person p1 = repo.findById(savedPerson.getId()).get();
+
+        savedPerson.setSalary(new BigDecimal("73000.28") );
+        repo.update(savedPerson);
+
+        Person p2 = repo.findById(savedPerson.getId()).get();
+
+        assertThat(p2.getSalary()).isNotEqualTo(p1.getSalary());
+
+    }
 }
