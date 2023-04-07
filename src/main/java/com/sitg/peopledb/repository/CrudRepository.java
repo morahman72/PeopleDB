@@ -1,9 +1,9 @@
 package com.sitg.peopledb.repository;
 
+import com.sitg.peopledb.annotation.Id;
 import com.sitg.peopledb.annotation.MultiSQL;
 import com.sitg.peopledb.annotation.SQL;
 import com.sitg.peopledb.model.CrudOperation;
-import com.sitg.peopledb.model.Entity;
 
 import java.sql.*;
 import java.util.ArrayList;
@@ -15,10 +15,10 @@ import java.util.stream.Stream;
 
 import static java.util.stream.Collectors.joining;
 
-abstract class CRUDRepository<T extends Entity> {
+abstract class CrudRepository<T> {
     protected Connection connection;
 
-    public CRUDRepository(Connection connection) {
+    public CrudRepository(Connection connection) {
 
         this.connection = connection;
     }
@@ -31,10 +31,10 @@ abstract class CRUDRepository<T extends Entity> {
             ResultSet rs = ps.getGeneratedKeys();
             while (rs.next()) {
                 long id = rs.getLong(1);
-                entity.setId(id);
-                System.out.println(entity);
+                setIdByAnnotation(id, entity);
+//                System.out.println(entity);
             }
-            System.out.printf("Records affected: %d%n", recordsAffected);
+//            System.out.printf("Records affected: %d%n", recordsAffected);
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -85,17 +85,44 @@ abstract class CRUDRepository<T extends Entity> {
     public void delete(T entity) {
         try {
             PreparedStatement ps = connection.prepareStatement(getSqlByAnnotation(CrudOperation.DELETE_ONE, this::getDeleteSql));
-            ps.setLong(1, entity.getId());
+            ps.setLong(1, getIdByAnnotation(entity));
             int affectedRecordCount = ps.executeUpdate();
             System.out.println(affectedRecordCount);
         } catch (SQLException e) {
             e.printStackTrace();
         }
     }
+    private void setIdByAnnotation(Long id, T entity) {
+        Arrays.stream(entity.getClass().getDeclaredFields())
+                .filter(field -> field.isAnnotationPresent(Id.class))
+                .forEach(field -> {
+                    field.setAccessible(true);
+                    try {
+                        field.set(entity, id);
+                    } catch (IllegalAccessException e) {
+                        throw new RuntimeException("Unable to set ID field value.");
+                    }
+                });
+    }
+    private Long getIdByAnnotation(T entity) {
+        return Arrays.stream(entity.getClass(). getDeclaredFields())
+                .filter(field -> field.isAnnotationPresent(Id.class))
+                .map(field -> {
+                    field.setAccessible(true);
+                    Long id = null;
+                    try {
+                        id = (long)field.get(entity);
+                    } catch (IllegalAccessException e) {
+                        e.printStackTrace();
+                    }
+                    return id;
+                })
+                .findFirst().orElseThrow(() -> new RuntimeException("No ID annotated field found."));
+    }
     public void delete(T...entities) { //like Person[] people
         try {
             Statement stmt = connection.createStatement();
-            String ids = Arrays.stream(entities).map(T::getId).map(String::valueOf).collect(joining(","));
+            String ids = Arrays.stream(entities).map(e -> getIdByAnnotation(e)).map(String::valueOf).collect(joining(","));
             int affectedRecordCount = stmt.executeUpdate(getSqlByAnnotation(CrudOperation.DELETE_MANY, this::getDeleteInSql).replace(":ids", ids));
             System.out.println(affectedRecordCount);
         } catch (SQLException e) {
@@ -106,12 +133,13 @@ abstract class CRUDRepository<T extends Entity> {
         try {
             PreparedStatement ps = connection.prepareStatement(getSqlByAnnotation(CrudOperation.UPDATE,this::getUpdateSql));
             mapForUpdate(entity, ps);
-            ps.setLong(5, entity.getId());
+            ps.setLong(5, getIdByAnnotation(entity));
             ps.executeUpdate();
         } catch (SQLException e) {
             e.printStackTrace();
         }
     }
+
 
     private String getSqlByAnnotation(CrudOperation operationType, Supplier<String> sqlGetter) {
         Stream<SQL> multiSqlStream = Arrays.stream(this.getClass().getDeclaredMethods())
